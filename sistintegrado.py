@@ -936,7 +936,7 @@ def dpbdt(t, V, m, Tin):
 # Condiciones iniciales
 
 V_0 = [kelvin(240), kelvin(240), kelvin(90)]
-u3_0 = np.array([kelvin(380), kelvin(380), kelvin(290), kelvin(250), kelvin(230)])
+u3_0 = np.array([kelvin(375), kelvin(375), kelvin(290), kelvin(250), kelvin(230)])
 T_in = kelvin(240)
 m_sf = 10
 Qpre_0 = qpre(m_rat_pb, u3_0[3], u3_0[4])
@@ -978,8 +978,6 @@ for j in tqdm(range(1, len(time))):
     m_htf[j] = m_sf
     op2[j] = OP_sf
 
-    """
-
     if u[j, 0]>kelvin(380):
         if m_htf[j]>m_rat_pb:
             m_pb = m_rat_pb
@@ -1004,7 +1002,7 @@ for j in tqdm(range(1, len(time))):
         T_in = u3[-1, 3]
 
 Qpb = Qpre + Qevp + Qsup
-"""
+
 caudal = open('caudal_mar.pkl', 'wb')
 pickle.dump(m_htf, caudal)
 caudal.close()
@@ -1016,27 +1014,27 @@ tiempo.close()
 temp_sf = open('temp_mar.pkl', 'wb')
 pickle.dump(u, temp_sf)
 temp_sf.close()
-"""
-tiempo2 = open('tiempo2_ene_w.pkl', 'wb')
+
+tiempo2 = open('tiempo2_mar.pkl', 'wb')
 pickle.dump(time3, tiempo2)
 tiempo2.close()
 
-temp_sgs = open('temp_sgs_ene_w', 'wb')
+temp_sgs = open('temp_sgs_mar.pkl', 'wb')
 pickle.dump(u3, temp_sgs)
 temp_sgs.close()
 
-power = open('power_ene_w.pkl', 'wb')
+power = open('power_mar.pkl', 'wb')
 pickle.dump(Qpb, power)
 power.close()
 
-work = open('work_ene_w', 'wb')
+work = open('work_mar.pkl', 'wb')
 pickle.dump(Wt, work)
 work.close()
 
-q_sup = open('q_sup_ene', 'wb')
+q_sup = open('q_sup_mar.pkl', 'wb')
 pickle.dump(m_sup, q_sup)
 q_sup.close()
-"""
+
 # ------------------------------------------------------------------------
 #                                 GRAFICOS
 # ------------------------------------------------------------------------
