@@ -417,12 +417,13 @@ def conv_tube_evp(h, t, t2):
     output = h * Aevp * (t - t2)
     return output
 
-def q_evap(m, t):
+def q_evap(m, t, tpre):
     """
     m: therminol flow rate
     t: output temperature therminol
     """
     mw = m_w
+    cp_w = CP.PropsSI('C', 'T', tevap, 'Q', 0, 'Water')
     kw_evp = CP.PropsSI('L', 'T', tevap, 'P', pout_evp, 'Water')
     k_evp = fit_k(t)
     hg = CP.PropsSI('H', 'T', tevap, 'Q', 1, 'Water')
@@ -430,10 +431,10 @@ def q_evap(m, t):
     alphao_evp = Nu_shell_evp(mw, tevap) * kw_evp/Devp
     alphai_evp = Nu_tubes_evp(m, t) * k_evp/Devp_i
     U_evp = coef_global(alphao_evp, alphai_evp)
-    Qconv = mw * (hg - hl)
+    Qconv = mw * (hg - hl) + m_w * cp_w * (tevap - tpre)
     E = abs(U_evp * Aevp * (t - tevap))
     if E < Qconv:
-        m_w_sup = E/(hg - hl)
+        m_w_sup = E/((hg - hl) + cp_w * (tevap - tpre))
     else:
         m_w_sup = m_w
     return m_w_sup
@@ -635,49 +636,6 @@ def paso_rk4(fun, h, tn, yn, m, Tin):
     yn1 = yn+1/6*(k1+2*k2+2*k3+k4)
     return yn1
 
-# ---------------------------------------
-#            Runge Kutta 2
-# ---------------------------------------
-
-def Rk1_2(fun, h, tn, yn, m, Tin, Tin2):
-    k1 = h*fun(tn, yn, m, Tin, Tin2)
-    return k1
-
-
-def Rk2_2(fun, h, tn, yn, m, Tin, Tin2):
-    k1 = Rk1_2(fun, h, tn, yn, m, Tin, Tin2)
-    k2 = h*fun(tn+h/2, yn+1/2*k1, m, Tin, Tin2)
-    return k2
-
-
-def Rk3_2(fun, h, tn, yn, m, Tin, Tin2):
-    k2 = Rk2_2(fun, h, tn, yn, m, Tin, Tin2)
-    k3 = h*fun(tn+h/2, yn+1/2*k2, m, Tin, Tin2)
-    return k3
-
-
-def Rk4_2(fun, h, tn, yn, m, Tin, Tin2):
-    k3 = Rk3_2(fun, h, tn, yn, m, Tin, Tin2)
-    k4 = h*fun(tn+h, yn+k3, m, Tin, Tin2)
-    return k4
-
-def paso_rk4_2(fun, h, tn, yn, m, Tin, Tin2):
-    """
-    fun: funcion de la ODE
-    h: paso de integracion
-    tn: tiempo n derivada
-    yn: valor de la funcion en n
-    m: caudal
-    Tin: temperatura de entrada fluido 1
-    Tin2: temperatura de entrada fluido 2
-    """
-    k1 = Rk1_2(fun, h, tn, yn, m, Tin, Tin2)
-    k2 = Rk2_2(fun, h, tn, yn, m, Tin, Tin2)
-    k3 = Rk3_2(fun, h, tn, yn, m, Tin, Tin2)
-    k4 = Rk4_2(fun, h, tn, yn, m, Tin, Tin2)
-    yn1 = yn+1/6*(k1+2*k2+2*k3+k4)
-    return yn1
-
 # ------------------------------------------------------------------------
 #                                  ODE
 # ------------------------------------------------------------------------
@@ -825,7 +783,7 @@ def dpbdt(t, V, m, Tin):
     #      Caudal evaporado
     # ---------------------------
 
-    m_w_sup = q_evap(m, Tevp_htf)
+    m_w_sup = q_evap(m, Tevp_htf, Tpre_w)
 
     alphao = Nu_shell_sup(m_w_sup, Tsup_w) * kw/Dsup
     alphai = Nu_tubes_sup(m, Tsup_htf) * k/Dsup_i
@@ -936,7 +894,7 @@ def dpbdt(t, V, m, Tin):
 # Condiciones iniciales
 
 V_0 = [kelvin(240), kelvin(240), kelvin(90)]
-u3_0 = np.array([kelvin(375), kelvin(375), kelvin(290), kelvin(250), kelvin(230)])
+u3_0 = np.array([kelvin(368), kelvin(365), kelvin(260), kelvin(235), kelvin(190)])
 T_in = kelvin(240)
 m_sf = 10
 Qpre_0 = qpre(m_rat_pb, u3_0[3], u3_0[4])
@@ -955,25 +913,15 @@ Wt[0] = Wt_0
 
 for j in tqdm(range(1, len(time))):
     t_eval = [time[j - 1], time[j]]
-    #T_sf = paso_rk4(dTdt, dt, time[j - 1], u[j - 1, :], m_sf, T_in)
-    #u[j, :] = T_sf 
-    u[j, :] = odeint(dTdt, u[j - 1, :], t_eval, 
-                     tfirst = True, args = (m_sf, T_in))[1]
+    T_sf = paso_rk4(dTdt, dt, time[j - 1], u[j - 1, :], m_sf, T_in)
+    u[j, :] = T_sf 
     PV_sf = u[j,0]
     err_sf[j] = SP_sf - PV_sf
     ierr_sf[j] = ierr_sf[j - 1] + dt * err_sf[j]
     P = - Kc_sf * err_sf[j]
     I = Kc_sf/taui_sf * ierr_sf[j]
     OP_sf = P + I
-    op[j] = OP_sf 
-    """ 
-    if OP_sf > OP_hi:
-        OP_sf = -1
-        ierr_sf[j] = ierr_sf[j] - err_sf[j] * dt
-    elif OP_sf < OP_lo:
-        OP_sf = 1
-        ierr_sf[j] = ierr_sf[j] - err_sf[j] * dt 
-    """   
+    op[j] = OP_sf   
     m_sf = min(1000, max(10, m_sf + OP_sf))
     m_htf[j] = m_sf
     op2[j] = OP_sf
@@ -990,9 +938,7 @@ for j in tqdm(range(1, len(time))):
         u3 = np.append(u3, [[T_pb[0], T_pb[1], T_pb[2], T_pb[3], T_pb[4]]], axis = 0)
         
         time3 = np.append(time3, time[j])
-        
-        #tin[j] = T_pb[3]
-        m_w_sup = q_evap(m_pb, T_pb[2])
+        m_w_sup = q_evap(m_pb, T_pb[2], T_pb[4])
         Qpre = np.append(Qpre, qpre(m_pb, u3[-1, 3], u3[-1, 4]))
         Qevp = np.append(Qevp, qevp(m_pb, u3[-1, 2]))
         Qsup = np.append(Qsup, qsup(m_w_sup, m_pb, u3[-1, 0], u3[-1, 1]))
@@ -1003,110 +949,35 @@ for j in tqdm(range(1, len(time))):
 
 Qpb = Qpre + Qevp + Qsup
 
-caudal = open('caudal_sept.pkl', 'wb')
+caudal = open('caudal_sept2.pkl', 'wb')
 pickle.dump(m_htf, caudal)
 caudal.close()
 
-tiempo = open('tiempo_sept.pkl', 'wb')
+tiempo = open('tiempo_sept2.pkl', 'wb')
 pickle.dump(time, tiempo)
 tiempo.close()
 
-temp_sf = open('temp_sept.pkl', 'wb')
+temp_sf = open('temp_sept2.pkl', 'wb')
 pickle.dump(u, temp_sf)
 temp_sf.close()
 
-tiempo2 = open('tiempo2_sept.pkl', 'wb')
+tiempo2 = open('tiempo2_sept2.pkl', 'wb')
 pickle.dump(time3, tiempo2)
 tiempo2.close()
 
-temp_sgs = open('temp_sgs_sept.pkl', 'wb')
+temp_sgs = open('temp_sgs_sept2.pkl', 'wb')
 pickle.dump(u3, temp_sgs)
 temp_sgs.close()
 
-power = open('power_sept.pkl', 'wb')
+power = open('power_sept2.pkl', 'wb')
 pickle.dump(Qpb, power)
 power.close()
 
-work = open('work_sept.pkl', 'wb')
+work = open('work_sept2.pkl', 'wb')
 pickle.dump(Wt, work)
 work.close()
 
-q_sup = open('q_sup_sept.pkl', 'wb')
+q_sup = open('q_sup_sept2.pkl', 'wb')
 pickle.dump(m_sup, q_sup)
 q_sup.close()
 
-# ------------------------------------------------------------------------
-#                                 GRAFICOS
-# ------------------------------------------------------------------------
-
-"""
-
-# GRAFICO CAUDAL TEMPERATURA 
-fig, ax1 = plt.subplots()
-
-color = 'tab:red'
-ax1.set_xlabel('tiempo[hr]')
-ax1.set_ylabel('Caudal [kg/s]', color=color)
-ax1.plot(time/3600, m_htf, color=color)
-ax1.tick_params(axis='y', labelcolor=color)
-
-ax2 = ax1.twinx()
-
-color = 'tab:blue'
-ax2.set_ylabel('Temperatura [C]', color=color)
-ax2.plot(time/3600, celsius(u[:,0]), color=color)
-ax2.tick_params(axis='y', labelcolor=color)
-
-
-fig.tight_layout()
-plt.show()
-
-# GRAFICO RADIACION TEMPERATURA
-fig, ax3 = plt.subplots()
-
-color = 'tab:red'
-ax3.set_xlabel('Tiempo[hr]')
-ax3.set_ylabel('DNI [W/m2]', color=color)
-ax3.plot(time/3600, fit_rad(time/3600), color=color)
-ax3.tick_params(axis='y', labelcolor=color)
-
-ax4 = ax3.twinx()
-
-color = 'tab:blue'
-ax4.set_ylabel('Temperatura [C]', color=color)  
-ax4.plot(time/3600, celsius(u[:,0]), color=color)
-ax4.tick_params(axis='y', labelcolor=color)
-
-
-fig.tight_layout()  
-plt.show()
-
-# GRAFICO POTENCIA TERMICA Y TRABAJO
-fig, ax5 = plt.subplots()
-
-color = 'tab:red'
-ax5.set_xlabel('Tiempo [hr]')
-ax5.set_ylabel('Trabajo turbina [MW]', color=color)
-ax5.plot(time3/3600, Wt[1:len(Wt)]/10**6, color=color)
-ax5.tick_params(axis='y', labelcolor=color)
-
-ax6 = ax5.twinx()
-
-color = 'tab:blue'
-ax6.set_ylabel('Potencia Térmica (Qpb) [MW]', color=color)  
-ax6.plot(time3/3600, Qpb[1:len(Qpb)]/10**6, color=color)
-ax6.tick_params(axis='y', labelcolor=color)
-
-
-fig.tight_layout()  
-plt.show()
-
-# Grafico generacion electrica
-
-fig, ax7 = plt.subplots()
-ax7.set_xlabel('Tiempo [hr]')
-ax7.set_ylabel('Potencia Eléctrica [MW]')
-ax7.plot(time3/3600, eta_gen * eta_tur * Wt[1:len(Wt)]/10**6)
-plt.show()
-
-"""

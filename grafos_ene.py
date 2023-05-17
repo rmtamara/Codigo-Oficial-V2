@@ -2,7 +2,8 @@ import pickle
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 import pandas as pd
-
+import numpy as np
+plt.close('all')
 # ------------------------------------------------------------------------
 #                            Base de Datos
 # ------------------------------------------------------------------------
@@ -90,6 +91,8 @@ color = 'tab:blue'
 ax4.set_ylabel('Temperatura [C]', color=color, fontsize = 30)  
 ax4.plot(time[166501:322019]/3600, celsius(u[166501:322019,0]), color=color, linewidth = 2)
 ax4.tick_params(axis='y', labelcolor=color)
+ax4.set_xlim(9.23, 18)
+ax4.set_ylim(0, 500)
 plt.yticks(fontsize = 20)
 plt.xticks(fontsize = 20)
 
@@ -193,3 +196,50 @@ plt.xticks(fontsize = 20)
 
 fig.tight_layout()  
 plt.show()
+
+# Promedio por hora de caudales
+
+first = int(time2[0]/3600)
+last = int(time2[-1]/3600)
+steps = last - first + 1
+hr = np.linspace(first, last, steps)
+htf = dict()
+w = dict()
+
+in_1 = np.where((time/3600>time2[0]/3600)&(time/3600<time2[-1]/3600))[0][0]
+in_2 = np.where((time/3600>time2[0]/3600)&(time/3600<time2[-1]/3600))[0][-1]
+
+for i in range(len(hr)):
+    htf[hr[i]] = []
+    w[hr[i]] = []
+
+for i in range(len(time2)):
+    h = int(time2[i]/3600)
+    w[h].append(q_sup[i])
+
+for i in range(in_1, in_2+1):
+    h = int(time[i]/3600)
+    htf[h].append(m_htf[i])
+
+for i in range(len(hr)):
+    htf[hr[i]] = np.mean(htf[hr[i]])
+    w[hr[i]] = np.mean(w[hr[i]])
+
+fluid = ('Therminol', 'Water')
+bar = dict()
+for i in range(len(fluid)):
+    bar[fluid[i]] = []
+for i in range(len(hr)):
+    bar['Therminol'].append(htf[hr[i]]) 
+    bar['Water'].append(w[hr[i]]) 
+
+fig, ax13 = plt.subplots()
+ax13.set_xlabel('Tiempo [hr]')
+ax13.set_ylabel('Irradiancia [W/m2]')
+ax13.plot(time[166501:322019]/3600, m_htf[166501:322019], label = 'caudal aceite')
+ax13.plot(time2, q_sup, label = 'caudal de vapor de agua')
+plt.show()
+
+
+
+
