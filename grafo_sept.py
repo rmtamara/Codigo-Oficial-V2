@@ -11,16 +11,24 @@ plt.close('all')
 
 file = 'base.xlsx'
 base_mes = pd.read_excel(file, sheet_name='Hoja7')
+base_mes_20 = pd.read_excel(file, sheet_name='Hoja8')
+base_mes_30 = pd.read_excel(file, sheet_name='Hoja11')
 rad = base_mes['Radiación Directa Normal (estimado) en 2.0 metros [mean]']
+rad_20 = base_mes_20['Radiación Directa Normal (estimado) en 2.0 metros [mean]']
+rad_30 = base_mes_30['Radiación Directa Normal (estimado) en 2.0 metros [mean]']
 temp = base_mes['Temperatura'] + 273.15
 dia = base_mes['Dia']
 mes = base_mes['Mes']
 hora = base_mes['hora']
 minuto = base_mes['minuto']
 hora_minuto = base_mes['Hora total']
+hora_minuto_20 = base_mes_20['Hora total']
+hora_minuto_30 = base_mes_30['Hora total']
 v = base_mes['Velocidad']
 
 fit_rad = CubicSpline(hora_minuto, rad)
+fit_rad_20 = CubicSpline(hora_minuto_20, rad_20)
+fit_rad_30 = CubicSpline(hora_minuto_30, rad_30)
 fit_temp = CubicSpline(hora_minuto, temp)
 fit_vel = CubicSpline(hora_minuto, v)
 
@@ -42,6 +50,23 @@ work = open('Septiembre/work_sept2.pkl', 'rb')
 Wt = pickle.load(work)
 msup = open('Septiembre/q_sup_sept2.pkl', 'rb')
 q_sup = pickle.load(msup)
+
+caudal_20 = open('Sept_20min/caudal_sept_20.pkl', 'rb')
+m_htf_20 = pickle.load(caudal_20)
+#tiempo = open('Abril/tiempo_abr2.pkl', 'rb')
+#time = pickle.load(tiempo)
+temp_sf_20 = open('Sept_20min/temp_sept_20.pkl', 'rb')
+u_20 = pickle.load(temp_sf_20)
+tiempo2_20 = open('Sept_20min/tiempo2_sept_20.pkl', 'rb')
+time2_20 = pickle.load(tiempo2_20)
+temp_sgs_20 = open('Sept_20min/temp_sgs_sept_20.pkl', 'rb')
+u2_20 = pickle.load(temp_sgs_20)
+power_20 = open('Sept_20min/power_sept_20.pkl', 'rb')
+Qpb_20 = pickle.load(power_20)
+work_20 = open('Sept_20min/work_sept_20.pkl', 'rb')
+Wt_20 = pickle.load(work_20)
+msup_20 = open('Sept_20min/q_sup_sept_20.pkl', 'rb')
+q_sup_20 = pickle.load(msup_20)
 
 # ------------------------------------------------------------------------
 #                    Funciones auxiliares
@@ -187,6 +212,24 @@ fig.tight_layout()
 plt.show()
 """
 
+fig, axs = plt.subplots(nrows= 3, ncols = 1, sharex = 'all', sharey = 'all', figsize = (8, 10))
+fig.subplots_adjust(left = 0.18, top = 0.95)
+#axs[0].set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+#axs[0].set_ylabel('$Irradiancia [Wm^{-2}]$', fontsize = 30)
+axs[0].plot(time/3600, fit_rad(time/3600), linewidth = 2, label = '10 min')
+axs[1].plot(time/3600, fit_rad_20(time/3600), linewidth = 2, label = '20 min')
+axs[2].plot(time/3600, fit_rad_30(time/3600) , linewidth = 2, label = '30 min')
+axs[0].set_title('Resolución 10 min', fontsize = 20)
+axs[1].set_title('Resolución 20 min', fontsize = 20)
+axs[2].set_title('Resolución 30 min', fontsize = 20)
+fig.text(0.04, 0.5, '$Irradiancia [Wm^{-2}]$', va = 'center', rotation = 'vertical', fontsize = 30)
+fig.text(0.5, 0.04, '$Tiempo [Hr]$', ha = 'center', fontsize = 30)
+
+for ax in axs:
+    ax.tick_params(axis= 'both', which = 'major', labelsize = 15)
+
+plt.show()
+
 # Grafico generacion electrica
 eta_gen = 0.99
 eta_tur = 0.6
@@ -195,9 +238,10 @@ fig, ax7 = plt.subplots()
 ax7.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
 ax7.set_ylabel('$Potencia Eléctrica [MW]$', fontsize = 30)
 ax7.plot(time2/3600, eta_gen * Wt[1:len(Wt)]/10**6, linewidth = 2)
+ax7.plot(time2_20/3600, eta_gen * Wt_20[1:len(Wt_20)]/10**6, linewidth = 2, color = 'red', label = '20 min')
 plt.yticks(fontsize = 20)
 plt.xticks(fontsize = 20)
-ax7.set_xlim(10.09, 17)
+ax7.set_xlim(10.24, 17)
 #ax7.set_xlim(9.42, 17)
 #ax7.set_ylim(1.04, 1.046)
 #ax7_little = fig.add_axes([0.58, 0.58, 0.25, 0.2])
@@ -235,6 +279,27 @@ plt.xticks(fontsize = 20)
 fig.tight_layout()
 plt.show()
 
+fig, ax18 = plt.subplots()
+color = 'tab:red'
+ax18.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+ax18.set_ylabel('$Caudal [kgs^{-1}]$', color=color, fontsize = 30)
+ax18.plot(time/3600, m_htf_20, color=color, linewidth = 2)
+ax18.tick_params(axis='y', labelcolor=color)
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+
+ax19 = ax18.twinx()
+
+color = 'tab:blue'
+ax19.set_ylabel('$Temperatura [°C]$', color=color, fontsize = 30)
+ax19.plot(time/3600, celsius(u_20[:, 0]), color=color, linewidth = 2)
+ax19.tick_params(axis='y', labelcolor=color)
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+
+fig.tight_layout()
+plt.show()
+
 # Grafico radiacion temperatura
 fig, ax11 = plt.subplots()
 
@@ -256,6 +321,66 @@ plt.yticks(fontsize = 20)
 plt.xticks(fontsize = 20)
 
 fig.tight_layout()  
+plt.show()
+
+fig, ax20 = plt.subplots()
+
+color = 'tab:red'
+ax20.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+ax20.set_ylabel('$DNI [Wm^{-2}]$', color=color, fontsize = 30)
+ax20.plot(time/3600, fit_rad_20(time/3600), color=color, linewidth = 2)
+ax20.tick_params(axis='y', labelcolor=color)
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+
+ax21 = ax20.twinx()
+
+color = 'tab:blue'
+ax21.set_ylabel('$Temperatura [°C]$', color=color, fontsize = 30)  
+ax21.plot(time/3600, celsius(u_20[:,0]), color=color, linewidth = 2)
+ax21.tick_params(axis='y', labelcolor=color)
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+
+fig.tight_layout()  
+plt.show()
+
+fig, ax22 = plt.subplots()
+ax22.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+ax22.set_ylabel('$Caudal [kgs^{-1}]$', fontsize = 30)
+ax22.plot(time[186841:291239]/3600, m_htf_20[186841:291239], linewidth = 2, label = '20 min', color = 'red')
+ax22.plot(time[182341:288539]/3600, m_htf[182341:288539], linewidth = 2, label = '10 min')
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+ax22.legend(fontsize = 20)
+ax22.set_xlim(10.37, 17)
+#ax7.set_ylim(1.04, 1.046)
+#ax7_little = fig.add_axes([0.58, 0.58, 0.25, 0.2])
+#ax7_little.plot(time2[61724:62863], eta_gen * eta_tur * Wt[61725:62864]/10**6)
+plt.show()
+
+# Caudal agua
+
+fig, ax23 = plt.subplots()
+ax23.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+ax23.set_ylabel('$Caudal [kgs^{-1}]$', fontsize = 30)
+ax23.plot(time2_20/3600, q_sup_20, linewidth = 2, label = '20 min', color = 'red')
+ax23.plot(time2/3600, q_sup, linewidth = 2, label = '10 min')
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+ax23.legend(fontsize = 20)
+ax23.set_xlim(10.24, 17)
+plt.show()
+
+fig, ax24 = plt.subplots()
+ax24.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
+ax24.set_ylabel('$Temperatura [°C]$', fontsize = 30)
+ax24.plot(time2_20/3600, celsius(u2_20[1:len(u2_20), 1]), linewidth = 2, label = '20 min', color = 'red')
+ax24.plot(time2/3600, celsius(u2[1:len(u2), 1]), linewidth = 2, label = '10 min')
+plt.yticks(fontsize = 20)
+plt.xticks(fontsize = 20)
+ax24.legend(fontsize = 20)
+ax24.set_xlim(10.24, 17)
 plt.show()
 
 """
@@ -289,6 +414,7 @@ ventana = 18001
 promedios = np.array(promedio_movil_centrado(q_sup, time2, ventana)[0])
 tiempos = np.array(promedio_movil_centrado(q_sup, time2, ventana)[1])
 
+"""
 fig, ax14 = plt.subplots()
 ax14.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
 ax14.set_ylabel('$Caudal [kgs^{-1}$]', fontsize = 30)
@@ -299,13 +425,13 @@ ax14.legend(loc = 'lower right', fontsize = 20)
 plt.yticks(fontsize = 20)
 plt.xticks(fontsize = 20)
 plt.show()
-
+"""
 ventana2 = 18001
 time3 = time[181621:289619]
 m_htf_sgs = m_htf[181621:289619]
 promedios_htf = np.array(promedio_movil_centrado(m_htf_sgs, time3, ventana2)[0])
 tiempos_htf = np.array(promedio_movil_centrado(m_htf_sgs, time3, ventana2)[1])
-
+"""
 fig, ax13 = plt.subplots()
 ax13.set_xlabel('$Tiempo [Hr]$', fontsize = 30)
 ax13.set_ylabel('$Caudal [kgs^{-1}]$', fontsize = 30)
@@ -317,7 +443,7 @@ plt.yticks(fontsize = 20)
 plt.xticks(fontsize = 20)
 
 plt.show()
-
+"""
 # Promedios centrados para tablas
 
 caudal_agua = promedios[0:-1:17500]
